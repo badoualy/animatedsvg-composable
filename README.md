@@ -16,11 +16,13 @@ repositories {
 
 Then, add the library dependency:
 ```gradle
-compile 'com.github.badoualy:animatedsvg-composable:1.0.0'
+implementation 'com.github.badoualy:animatedsvg-composable:1.0.0'
 ```
 
 
 Now go do some awesome stuff!
+
+This library is also available as a `View`: https://github.com/badoualy/kanji-strokeview/
 
 Usage
 ----------------
