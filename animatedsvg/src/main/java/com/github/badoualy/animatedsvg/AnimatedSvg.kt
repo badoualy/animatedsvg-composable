@@ -95,7 +95,7 @@ fun AnimatedSvg(
     }
 
     // Animation
-    val definition = remember {
+    val definition = remember(strokes) {
         buildTransition(
             pathMeasureList = strokes.map { PathMeasure(it.asAndroidPath(), false) }
         )
@@ -212,8 +212,8 @@ private fun buildTransition(
         transition(AnimatedSvgState.START to AnimatedSvgState.END) {
             StrokeProgress using keyframes {
                 delayMillis = initialDelay
-                durationMillis = pathMeasureList.foldIndexed(0) { i, previousKeyframe, stroke ->
-                    val keyFrame = (previousKeyframe + stroke.length * 10).toInt()
+                durationMillis = pathMeasureList.foldIndexed(0) { i, previousKeyframe, pathMeasure ->
+                    val keyFrame = (previousKeyframe + pathMeasure.length * 10).toInt()
                     val progress = (i + 1).toFloat()
                     progress at keyFrame with FastOutSlowInEasing
                     progress at (keyFrame + delayBetweenStrokes) with FastOutSlowInEasing
