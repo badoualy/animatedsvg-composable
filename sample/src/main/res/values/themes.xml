@@ -1,0 +1,4 @@
+<resources>
+
+    <style name="Theme.AnimatedSvgComposable" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
+</resources>
