@@ -1,15 +1,16 @@
 package com.github.badoualy.animatedsvg
 
+import android.annotation.SuppressLint
 import android.graphics.DashPathEffect
 import android.graphics.Matrix
 import android.graphics.PathMeasure
 import android.graphics.RectF
+import androidx.annotation.IntRange
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FloatPropKey
-import androidx.compose.animation.core.IntPropKey
 import androidx.compose.animation.core.TransitionDefinition
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.transitionDefinition
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.transition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.contentColor
@@ -38,8 +39,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.ui.tooling.preview.Preview
+import kotlin.math.ceil
 
-private val StrokeIndex = IntPropKey()
 private val StrokeProgress = FloatPropKey()
 
 private val DEFAULT_SIZE = 42.dp
@@ -102,11 +103,12 @@ fun AnimatedSvg(
     val state = if (animationState.isRunning) {
         transition(
             definition = definition,
-            initState = AnimatedSvgState.START(0),
-            toState = AnimatedSvgState.END(0)
+            initState = AnimatedSvgState.START,
+            toState = AnimatedSvgState.END,
+            onStateChangeFinished = { animationState.onAnimationEnd() }
         )
     } else {
-        definition.getStateFor(AnimatedSvgState.END(strokes.lastIndex))
+        definition.getStateFor(AnimatedSvgState.END)
     }
 
     // Drawing
@@ -117,18 +119,12 @@ fun AnimatedSvg(
     ) {
         strokePaint.strokeWidth = strokeWidth.toPx()
 
-        val animatedStrokeIndex = state[StrokeIndex]
-        val progress = state[StrokeProgress]
-
-        if (animationState.isRunning && animatedStrokeIndex == strokes.lastIndex && progress == 1.0f) {
-            // Since we're using the nextState property to chain strokes, we can't currently
-            // use the onStateChangeFinished callback
-            // Once a better API is available to chain state transition, update this
-            animationState.onAnimationEnd()
-        }
+        val animationProgress = state[StrokeProgress]
+        val animatedStrokeIndex = (ceil(animationProgress).toInt() - 1).coerceAtLeast(0)
+        val animatedStrokeProgress = animationProgress - animatedStrokeIndex
 
         scaledStrokes.forEachIndexed { i, (strokePath, strokeMeasure) ->
-            val isAnimatedStroke = i == animatedStrokeIndex && progress < 1f
+            val isAnimatedStroke = i == animatedStrokeIndex && animatedStrokeProgress < 1f
 
             // Draw placeholder
             if (drawPlaceholder && (i > animatedStrokeIndex || isAnimatedStroke)) {
@@ -144,7 +140,7 @@ fun AnimatedSvg(
                 val length = strokeMeasure.length
                 DashPathEffect(
                     floatArrayOf(length, length),
-                    (1f - progress) * length
+                    (1f - animatedStrokeProgress) * length
                 )
             } else {
                 null
@@ -153,8 +149,12 @@ fun AnimatedSvg(
 
             // Draw finger
             val fingerRadiusPx = fingerRadius.toPx()
-            if (isAnimatedStroke && progress > 0.0f && fingerRadiusPx > 0) {
-                strokeMeasure.getPosTan(strokeMeasure.length * progress, fingerPosition, null)
+            if (isAnimatedStroke && animatedStrokeProgress > 0.0f && fingerRadiusPx > 0) {
+                strokeMeasure.getPosTan(
+                    strokeMeasure.length * animatedStrokeProgress,
+                    fingerPosition,
+                    null
+                )
                 drawCircle(
                     color = fingerColor,
                     radius = fingerRadiusPx,
@@ -188,57 +188,39 @@ private fun List<Path>.scale(srcBox: RectF, dstBox: RectF): List<Pair<Path, Path
     }
 }
 
-private sealed class AnimatedSvgState {
-    data class START(val strokeIndex: Int) : AnimatedSvgState()
-    data class END(val strokeIndex: Int) : AnimatedSvgState()
-}
+private enum class AnimatedSvgState { START, END }
 
 /**
  * Builds a transition definition for the given path measures.
- * Animations will be played sequentially.
  * The animation duration is proportional to the path's length, with a formula tested and approved.
  * Each stroke is animated with its own interpolator.
- *
- * Each stroke has a [AnimatedSvgState.START] and [AnimatedSvgState.END] state.
- * At the end of start to end transition, we execute a snap transition from end(i) to start(i+1)
- * to trigger the next stroke state transition.
  */
+@SuppressLint("Range")
 private fun buildTransition(
     pathMeasureList: List<PathMeasure>,
-    initialDelay: Int = 250,
-    delayBetweenStrokes: Int = 0
+    @IntRange(from = 0) initialDelay: Int = 250,
+    @IntRange(from = 0) delayBetweenStrokes: Int = 0
 ): TransitionDefinition<AnimatedSvgState> {
     return transitionDefinition {
-        pathMeasureList.forEachIndexed { i, pathMeasure ->
-            val startState = AnimatedSvgState.START(i)
-            state(startState) {
-                this[StrokeIndex] = i
-                this[StrokeProgress] = 0f
-            }
-            val endState = AnimatedSvgState.END(i)
-            state(endState) {
-                this[StrokeIndex] = i
-                this[StrokeProgress] = 1f
-            }
+        state(AnimatedSvgState.START) {
+            this[StrokeProgress] = 0f
+        }
+        state(AnimatedSvgState.END) {
+            this[StrokeProgress] = pathMeasureList.size.toFloat()
+        }
 
-            val isLastPath = i == pathMeasureList.lastIndex
-            transition(startState to endState) {
-                StrokeProgress using tween(
-                    delayMillis = if (i == 0) initialDelay else delayBetweenStrokes,
-                    durationMillis = (pathMeasure.length * 10L).toInt(), // Panoramix' formula
-                    easing = FastOutSlowInEasing
-                )
-                if (!isLastPath) {
-                    // Chain
-                    nextState = AnimatedSvgState.START(i + 1)
+        transition(AnimatedSvgState.START to AnimatedSvgState.END) {
+            StrokeProgress using keyframes {
+                delayMillis = initialDelay
+                durationMillis = pathMeasureList.foldIndexed(0) { i, previousKeyframe, stroke ->
+                    val keyFrame = (previousKeyframe + stroke.length * 10).toInt()
+                    val progress = (i + 1).toFloat()
+                    progress at keyFrame with FastOutSlowInEasing
+                    progress at (keyFrame + delayBetweenStrokes) with FastOutSlowInEasing
+
+                    keyFrame + delayBetweenStrokes
                 }
-            }
-
-            if (!isLastPath) {
-                snapTransition(
-                    endState to AnimatedSvgState.START(i + 1),
-                    nextState = AnimatedSvgState.END(i + 1)
-                )
+                pathMeasureList.size.toFloat() at durationMillis with FastOutSlowInEasing
             }
         }
     }
