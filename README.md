@@ -22,6 +22,8 @@ compile 'com.github.badoualy:animatedsvg-composable:1.0.0'
 
 Now go do some awesome stuff!
 
+This library is also available as a `View`: https://github.com/badoualy/kanji-strokeview/
+
 Usage
 ----------------
 
