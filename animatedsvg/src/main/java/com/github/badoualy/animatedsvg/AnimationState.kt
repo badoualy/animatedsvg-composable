@@ -8,16 +8,19 @@ import androidx.compose.runtime.structuralEqualityPolicy
 
 @Stable
 class AnimationState(
-    isRunningInitially: Boolean = false
+    animate: Boolean = false
 ) {
-    var isRunning: Boolean by mutableStateOf(isRunningInitially, structuralEqualityPolicy())
+    var animate: Boolean by mutableStateOf(animate, structuralEqualityPolicy())
+        private set
+    var pulse: Int by mutableStateOf(0, structuralEqualityPolicy())
         private set
 
-    fun onAnimationEnd(){
-        isRunning = false
+    fun start() {
+        restart()
     }
 
     fun restart() {
-        isRunning = true
+        pulse++
+        animate = true
     }
 }

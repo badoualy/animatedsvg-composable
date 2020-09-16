@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.platform.setContent
 import com.github.badoualy.animatedsvg.AnimatedSvg
 import com.github.badoualy.animatedsvg.AnimationState
-import com.github.badoualy.animatedsvg.SVGHelper
+import com.github.badoualy.animatedsvg.SvgHelper
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,8 +39,8 @@ fun AnimatedSvgComposableSample() {
     M37,58.25c8.75-1.12,27-3.5,36.25-4
     """.trimIndent()
 
-    val strokes = remember { svg.lines().map { SVGHelper.buildPath(it).asComposePath() } }
-    val state = remember { AnimationState(isRunningInitially = true) }
+    val strokes = remember { svg.lines().map { SvgHelper.buildPath(it).asComposePath() } }
+    val state = remember { AnimationState(animate = true) }
     AnimatedSvg(
         strokes = strokes,
         box = RectF(0f, 0f, 109f, 109f),

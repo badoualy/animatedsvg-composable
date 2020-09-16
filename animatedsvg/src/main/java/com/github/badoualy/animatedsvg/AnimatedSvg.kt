@@ -95,17 +95,17 @@ fun AnimatedSvg(
     }
 
     // Animation
-    val definition = remember(strokes) {
-        buildTransition(
-            pathMeasureList = strokes.map { PathMeasure(it.asAndroidPath(), false) }
-        )
+    val strokeMeasures = remember(strokes) {
+        strokes.map { PathMeasure(it.asAndroidPath(), false) }
     }
-    val state = if (animationState.isRunning) {
+    val definition = remember(strokes, animationState.pulse) {
+        buildTransitionDefinition(pathMeasureList = strokeMeasures)
+    }
+    val state = if (animationState.animate) {
         transition(
             definition = definition,
             initState = AnimatedSvgState.START,
-            toState = AnimatedSvgState.END,
-            onStateChangeFinished = { animationState.onAnimationEnd() }
+            toState = AnimatedSvgState.END
         )
     } else {
         definition.getStateFor(AnimatedSvgState.END)
@@ -196,7 +196,7 @@ private enum class AnimatedSvgState { START, END }
  * Each stroke is animated with its own interpolator.
  */
 @SuppressLint("Range")
-private fun buildTransition(
+private fun buildTransitionDefinition(
     pathMeasureList: List<PathMeasure>,
     @IntRange(from = 0) initialDelay: Int = 250,
     @IntRange(from = 0) delayBetweenStrokes: Int = 0
@@ -212,14 +212,15 @@ private fun buildTransition(
         transition(AnimatedSvgState.START to AnimatedSvgState.END) {
             StrokeProgress using keyframes {
                 delayMillis = initialDelay
-                durationMillis = pathMeasureList.foldIndexed(0) { i, previousKeyframe, pathMeasure ->
-                    val keyFrame = (previousKeyframe + pathMeasure.length * 10).toInt()
-                    val progress = (i + 1).toFloat()
-                    progress at keyFrame with FastOutSlowInEasing
-                    progress at (keyFrame + delayBetweenStrokes) with FastOutSlowInEasing
+                durationMillis =
+                    pathMeasureList.foldIndexed(0) { i, previousKeyframe, pathMeasure ->
+                        val keyFrame = (previousKeyframe + pathMeasure.length * 10).toInt()
+                        val progress = (i + 1).toFloat()
+                        progress at keyFrame with FastOutSlowInEasing
+                        progress at (keyFrame + delayBetweenStrokes) with FastOutSlowInEasing
 
-                    keyFrame + delayBetweenStrokes
-                }
+                        keyFrame + delayBetweenStrokes
+                    }
                 pathMeasureList.size.toFloat() at durationMillis with FastOutSlowInEasing
             }
         }
@@ -238,7 +239,7 @@ private fun AnimatedSvgPreview() {
     """.trimIndent()
 
     MaterialTheme {
-        val strokes = remember { svg.lines().map { SVGHelper.buildPath(it).asComposePath() } }
+        val strokes = remember { svg.lines().map { SvgHelper.buildPath(it).asComposePath() } }
         AnimatedSvg(
             strokes = strokes,
             box = RectF(0f, 0f, 109f, 109f),

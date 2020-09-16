@@ -9,7 +9,7 @@ import java.util.regex.Pattern
  *
  * see https://github.com/bigfishcat/svg-android/blob/master/src/main/java/com/larvalabs/svgandroid/SVGParser.java
  */
-object SVGHelper {
+object SvgHelper {
 
     // Extract an instruction from an SVG command string
     private val svgInstructionPattern = Pattern.compile("([a-zA-Z])([^a-zA-Z]+)")
