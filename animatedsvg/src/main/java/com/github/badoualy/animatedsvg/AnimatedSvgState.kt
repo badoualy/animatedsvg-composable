@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.structuralEqualityPolicy
 
 @Stable
-class AnimationState(
+class AnimatedSvgState(
     animate: Boolean = false
 ) {
     var animate: Boolean by mutableStateOf(animate, structuralEqualityPolicy())

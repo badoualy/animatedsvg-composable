@@ -16,7 +16,7 @@ repositories {
 
 Then, add the library dependency:
 ```gradle
-implementation 'com.github.badoualy:animatedsvg-composable:1.0.0'
+implementation 'com.github.badoualy:animatedsvg-composable:1.2.0'
 ```
 
 
@@ -29,13 +29,13 @@ Usage
 
 (See MainActivity sample)
 ```kotlin
-val state = remember { AnimationState(isRunningInitially = true) }
+val state = remember { AnimatedSvgState(animate = true) }
 AnimatedSvg(
     strokes = strokes,
     box = RectF(0f, 0f, 109f, 109f),
     modifier = Modifier
         .fillMaxSize()
         .clickable(onClick = { state.restart() }),
-    animationState = state
+    state = state
 )
 ```

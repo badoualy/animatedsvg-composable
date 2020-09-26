@@ -51,7 +51,7 @@ private val DEFAULT_SIZE = 42.dp
  * @param strokes list of path to animate sequentially (in the given order)
  * @param box bounding box of the underlying SVG
  * @param modifier modifiers applied to the canvas where the svg is drawn on
- * @param animationState state of the animation, isRunning is automatically set to false when animation ends
+ * @param state state of the animation, isRunning is automatically set to false when animation ends
  * @param drawPlaceholder true to draw the placeholder below the animation, to preview the content
  * @param highlightedStrokes list of stroke index to highlight
  * @param strokeWidth strokeWidth to apply to the paint drawing the path
@@ -66,7 +66,7 @@ fun AnimatedSvg(
     strokes: List<Path>,
     box: RectF,
     modifier: Modifier = Modifier.preferredSize(DEFAULT_SIZE),
-    animationState: AnimationState = remember { AnimationState(false) },
+    state: AnimatedSvgState = remember { AnimatedSvgState(false) },
     drawPlaceholder: Boolean = true,
     highlightedStrokes: IntArray = intArrayOf(),
     strokeWidth: Dp = 4.dp,
@@ -98,17 +98,17 @@ fun AnimatedSvg(
     val strokeMeasures = remember(strokes) {
         strokes.map { PathMeasure(it.asAndroidPath(), false) }
     }
-    val definition = remember(strokes, animationState.pulse) {
+    val definition = remember(strokes, state.pulse) {
         buildTransitionDefinition(pathMeasureList = strokeMeasures)
     }
-    val state = if (animationState.animate) {
+    val state = if (state.animate) {
         transition(
             definition = definition,
-            initState = AnimatedSvgState.START,
-            toState = AnimatedSvgState.END
+            initState = AnimationState.START,
+            toState = AnimationState.END
         )
     } else {
-        definition.getStateFor(AnimatedSvgState.END)
+        definition.getStateFor(AnimationState.END)
     }
 
     // Drawing
@@ -188,7 +188,7 @@ private fun List<Path>.scale(srcBox: RectF, dstBox: RectF): List<Pair<Path, Path
     }
 }
 
-private enum class AnimatedSvgState { START, END }
+private enum class AnimationState { START, END }
 
 /**
  * Builds a transition definition for the given path measures.
@@ -200,16 +200,16 @@ private fun buildTransitionDefinition(
     pathMeasureList: List<PathMeasure>,
     @IntRange(from = 0) initialDelay: Int = 250,
     @IntRange(from = 0) delayBetweenStrokes: Int = 0
-): TransitionDefinition<AnimatedSvgState> {
+): TransitionDefinition<AnimationState> {
     return transitionDefinition {
-        state(AnimatedSvgState.START) {
+        state(AnimationState.START) {
             this[StrokeProgress] = 0f
         }
-        state(AnimatedSvgState.END) {
+        state(AnimationState.END) {
             this[StrokeProgress] = pathMeasureList.size.toFloat()
         }
 
-        transition(AnimatedSvgState.START to AnimatedSvgState.END) {
+        transition(AnimationState.START to AnimationState.END) {
             StrokeProgress using keyframes {
                 delayMillis = initialDelay
                 durationMillis =
