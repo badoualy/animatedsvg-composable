@@ -32,8 +32,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asComposePath
-import androidx.compose.ui.graphics.drawscope.drawCanvas
-import androidx.compose.ui.onPositioned
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.onSizeChanged
 import androidx.compose.ui.platform.DensityAmbient
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -101,7 +101,7 @@ fun AnimatedSvg(
     val definition = remember(strokes, state.pulse) {
         buildTransitionDefinition(pathMeasureList = strokeMeasures)
     }
-    val state = if (state.animate) {
+    val transitionState = if (state.animate) {
         transition(
             definition = definition,
             initState = AnimationState.START,
@@ -115,11 +115,11 @@ fun AnimatedSvg(
     Canvas(
         modifier = modifier
             .aspectRatio(1f)
-            .onPositioned { currentSize = it.size }
+            .onSizeChanged { currentSize = it }
     ) {
         strokePaint.strokeWidth = strokeWidth.toPx()
 
-        val animationProgress = state[StrokeProgress]
+        val animationProgress = transitionState[StrokeProgress]
         val animatedStrokeIndex = (ceil(animationProgress).toInt() - 1).coerceAtLeast(0)
         val animatedStrokeProgress = animationProgress - animatedStrokeIndex
 
@@ -130,7 +130,7 @@ fun AnimatedSvg(
             if (drawPlaceholder && (i > animatedStrokeIndex || isAnimatedStroke)) {
                 strokePaint.color = placeholderColor
                 strokePaint.nativePathEffect = null
-                drawCanvas { canvas, _ -> canvas.drawPath(strokePath, strokePaint) }
+                drawIntoCanvas { canvas -> canvas.drawPath(strokePath, strokePaint) }
             }
             if (i > animatedStrokeIndex) return@forEachIndexed
 
@@ -145,7 +145,7 @@ fun AnimatedSvg(
             } else {
                 null
             }
-            drawCanvas { canvas, _ -> canvas.drawPath(strokePath, strokePaint) }
+            drawIntoCanvas { canvas -> canvas.drawPath(strokePath, strokePaint) }
 
             // Draw finger
             val fingerRadiusPx = fingerRadius.toPx()
