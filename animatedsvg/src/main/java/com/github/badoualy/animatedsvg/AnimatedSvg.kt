@@ -12,8 +12,8 @@ import androidx.compose.animation.core.TransitionDefinition
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.transitionDefinition
 import androidx.compose.animation.transition
+import androidx.compose.foundation.AmbientContentColor
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.contentColor
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.preferredSize
@@ -70,8 +70,8 @@ fun AnimatedSvg(
     drawPlaceholder: Boolean = true,
     highlightedStrokes: IntArray = intArrayOf(),
     strokeWidth: Dp = 4.dp,
-    color: Color = contentColor(),
-    placeholderColor: Color = contentColor().copy(alpha = 0.25f),
+    color: Color = AmbientContentColor.current,
+    placeholderColor: Color = AmbientContentColor.current.copy(alpha = 0.25f),
     highlightColor: Color = MaterialTheme.colors.secondary,
     fingerRadius: Dp = 8.dp,
     fingerColor: Color = MaterialTheme.colors.primary
