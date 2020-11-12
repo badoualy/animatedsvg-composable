@@ -16,6 +16,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.preferredSize
+import androidx.compose.material.AmbientContentAlpha
 import androidx.compose.material.AmbientContentColor
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -70,7 +71,7 @@ fun AnimatedSvg(
     drawPlaceholder: Boolean = true,
     highlightedStrokes: IntArray = intArrayOf(),
     strokeWidth: Dp = 4.dp,
-    color: Color = AmbientContentColor.current,
+    color: Color = AmbientContentColor.current.copy(AmbientContentAlpha.current),
     placeholderColor: Color = AmbientContentColor.current.copy(alpha = 0.25f),
     highlightColor: Color = MaterialTheme.colors.secondary,
     fingerRadius: Dp = 8.dp,
