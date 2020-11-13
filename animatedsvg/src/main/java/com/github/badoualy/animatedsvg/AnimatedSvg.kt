@@ -71,7 +71,7 @@ fun AnimatedSvg(
     drawPlaceholder: Boolean = true,
     highlightedStrokes: IntArray = intArrayOf(),
     strokeWidth: Dp = 4.dp,
-    color: Color = AmbientContentColor.current.copy(AmbientContentAlpha.current),
+    color: Color = AmbientContentColor.current.copy(alpha = AmbientContentAlpha.current),
     placeholderColor: Color = AmbientContentColor.current.copy(alpha = 0.25f),
     highlightColor: Color = MaterialTheme.colors.secondary,
     fingerRadius: Dp = 8.dp,
