@@ -4,12 +4,9 @@ import android.graphics.DashPathEffect
 import android.graphics.Matrix
 import android.graphics.PathMeasure
 import android.graphics.RectF
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.aspectRatio
@@ -19,6 +16,7 @@ import androidx.compose.material.LocalContentAlpha
 import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -94,47 +92,25 @@ fun AnimatedSvg(
     val strokeMeasures = remember(strokes) {
         strokes.map { PathMeasure(it.asAndroidPath(), false) }
     }
-    var transitionState by remember(strokes, animate, animatedStrokes) {
-        val initialState = if (animate && animatedStrokes.isNotEmpty()) {
-            AnimationState.Start(strokeIndex = animatedStrokes.first(), strokeAnimationIndex = 0)
-        } else {
-            AnimationState.End(strokeIndex = strokes.lastIndex, strokeAnimationIndex = 0)
-        }
-        mutableStateOf(MutableTransitionState(initialState))
+    var animatedStrokeIndex by remember(strokes, animate, animatedStrokes) {
+        mutableStateOf(animatedStrokes.firstOrNull() ?: 0)
     }
-    val transition = updateTransition(transitionState, "AnimatedSvg")
-    val currentState = transitionState.currentState
-
-    // Animation values
-    val animatedStrokeIndex = currentState.strokeIndex
-    val animatedStrokeAnimationIndex = currentState.strokeAnimationIndex
-    val animatedStrokeProgress by transition.animateFloat(
-        transitionSpec = {
-            if (initialState is AnimationState.Start && targetState is AnimationState.End) {
-                tween(
-                    durationMillis = (strokeMeasures[initialState.strokeIndex].length * 10).toInt(),
-                    delayMillis = if (initialState.strokeAnimationIndex == 0) initialDelay else delayBetweenStrokes,
+    var animatedProgress by remember(strokes, animate, animatedStrokes) {
+        mutableStateOf(Animatable(0f))
+    }
+    LaunchedEffect(animatedProgress) {
+        animatedStrokes.forEachIndexed { i, stroke ->
+            animatedProgress.snapTo(0f)
+            animatedStrokeIndex = stroke
+            animatedProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = (strokeMeasures[stroke].length * 10).toInt(),
+                    delayMillis = if (i == 0) initialDelay else delayBetweenStrokes,
                     easing = FastOutSlowInEasing
                 )
-            } else {
-                snap()
-            }
+            )
         }
-    ) {
-        if (it is AnimationState.Start) 0f else 1f
-    }
-
-    // Animation state update
-    if (currentState is AnimationState.Start) {
-        transitionState.targetState = AnimationState.End(
-            strokeIndex = animatedStrokeIndex,
-            strokeAnimationIndex = animatedStrokeAnimationIndex
-        )
-    } else if (currentState is AnimationState.End && animatedStrokeAnimationIndex < animatedStrokes.lastIndex) {
-        transitionState.targetState = AnimationState.Start(
-            strokeIndex = animatedStrokes[animatedStrokeAnimationIndex + 1],
-            strokeAnimationIndex = animatedStrokeAnimationIndex + 1
-        )
     }
 
     // Drawing
@@ -151,12 +127,7 @@ fun AnimatedSvg(
                 if (animate && animatedStrokes.isNotEmpty()) {
                     clickable {
                         // Restart animation on click
-                        transitionState = MutableTransitionState(
-                            AnimationState.Start(
-                                strokeIndex = animatedStrokes.first(),
-                                strokeAnimationIndex = 0
-                            )
-                        )
+                        animatedProgress = Animatable(0f)
                     }
                 } else {
                     this
@@ -166,6 +137,7 @@ fun AnimatedSvg(
             .aspectRatio(1f)
             .onSizeChanged { currentSize = it }
     ) {
+        val animatedStrokeProgress = animatedProgress.value
         strokePaint.strokeWidth = strokeWidth.toPx()
 
         scaledStrokes.forEachIndexed { i, (strokePath, strokeMeasure) ->
@@ -231,28 +203,6 @@ private fun List<Path>.scale(srcBox: RectF, dstBox: RectF): List<Pair<Path, Path
         val measure = PathMeasure(path.asAndroidPath(), false)
         path to measure
     }
-}
-
-private sealed class AnimationState {
-
-    /** Index of the stroke in the input [Path] list */
-    abstract val strokeIndex: Int
-
-    /**
-     * Index of the stroke in the animation. It can differ from [strokeIndex] if we're animating
-     * only a subset of the input [Path] list
-     */
-    abstract val strokeAnimationIndex: Int
-
-    data class Start(
-        override val strokeIndex: Int,
-        override val strokeAnimationIndex: Int = strokeIndex
-    ) : AnimationState()
-
-    data class End(
-        override val strokeIndex: Int,
-        override val strokeAnimationIndex: Int = strokeIndex
-    ) : AnimationState()
 }
 
 @Preview(widthDp = 42, heightDp = 42, showBackground = true, backgroundColor = 0xFFFFFFFF)
