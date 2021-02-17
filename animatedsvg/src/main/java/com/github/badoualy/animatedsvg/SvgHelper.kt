@@ -9,6 +9,7 @@ import java.util.regex.Pattern
  *
  * see https://github.com/bigfishcat/svg-android/blob/master/src/main/java/com/larvalabs/svgandroid/SVGParser.java
  */
+@Suppress("UNUSED_PARAMETER", "unused")
 object SvgHelper {
 
     // Extract an instruction from an SVG command string

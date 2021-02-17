@@ -16,7 +16,7 @@ repositories {
 
 Then, add the library dependency:
 ```gradle
-implementation 'com.github.badoualy:animatedsvg-composable:1.2.0'
+implementation 'com.github.badoualy:animatedsvg-composable:1.3.0'
 ```
 
 

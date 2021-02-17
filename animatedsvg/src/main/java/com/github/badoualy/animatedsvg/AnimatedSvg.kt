@@ -1,23 +1,22 @@
 package com.github.badoualy.animatedsvg
 
-import android.annotation.SuppressLint
 import android.graphics.DashPathEffect
 import android.graphics.Matrix
 import android.graphics.PathMeasure
 import android.graphics.RectF
-import androidx.annotation.IntRange
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.FloatPropKey
-import androidx.compose.animation.core.TransitionDefinition
-import androidx.compose.animation.core.keyframes
-import androidx.compose.animation.core.transitionDefinition
-import androidx.compose.animation.transition
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.preferredSize
-import androidx.compose.material.AmbientContentAlpha
-import androidx.compose.material.AmbientContentColor
+import androidx.compose.material.LocalContentAlpha
+import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,15 +33,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.toComposePathEffect
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.DensityAmbient
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.ui.tooling.preview.Preview
-import kotlin.math.ceil
-
-private val StrokeProgress = FloatPropKey()
 
 private val DEFAULT_SIZE = 42.dp
 
@@ -52,8 +49,11 @@ private val DEFAULT_SIZE = 42.dp
  * @param strokes list of path to animate sequentially (in the given order)
  * @param box bounding box of the underlying SVG
  * @param modifier modifiers applied to the canvas where the svg is drawn on
- * @param state state of the animation, isRunning is automatically set to false when animation ends
+ * @param animate true if the animation should run, false otherwise
+ * @param initialDelay initial delay in ms before the first stroke of the animation starts
+ * @param delayBetweenStrokes delay in ms between each animated stroke
  * @param drawPlaceholder true to draw the placeholder below the animation, to preview the content
+ * @param animatedStrokes list of indices from [strokes] to animate (the rest will be drawn as placeholder if enabled)
  * @param highlightedStrokes list of stroke index to highlight
  * @param strokeWidth strokeWidth to apply to the paint drawing the path
  * @param color stroke color for the actual strokes being animated
@@ -66,27 +66,22 @@ private val DEFAULT_SIZE = 42.dp
 fun AnimatedSvg(
     strokes: List<Path>,
     box: RectF,
-    modifier: Modifier = Modifier.preferredSize(DEFAULT_SIZE),
-    state: AnimatedSvgState = remember { AnimatedSvgState(false) },
+    modifier: Modifier = Modifier,
+    animate: Boolean = false,
+    initialDelay: Int = 250,
+    delayBetweenStrokes: Int = 0,
     drawPlaceholder: Boolean = true,
+    animatedStrokes: List<Int> = strokes.indices.toList(),
     highlightedStrokes: IntArray = intArrayOf(),
     strokeWidth: Dp = 4.dp,
-    color: Color = AmbientContentColor.current.copy(alpha = AmbientContentAlpha.current),
-    placeholderColor: Color = AmbientContentColor.current.copy(alpha = 0.25f),
+    color: Color = LocalContentColor.current.copy(alpha = LocalContentAlpha.current),
+    placeholderColor: Color = LocalContentColor.current.copy(alpha = 0.25f),
     highlightColor: Color = MaterialTheme.colors.secondary,
     fingerRadius: Dp = 8.dp,
     fingerColor: Color = MaterialTheme.colors.primary
 ) {
-    val strokePaint = remember {
-        Paint().apply {
-            style = PaintingStyle.Stroke
-            strokeCap = StrokeCap.Round
-        }
-    }
-    val fingerPosition = remember { floatArrayOf(0f, 0f) }
-
     // Build matrix and scaled strokes to fill the viewport
-    val defaultSizePx = with(DensityAmbient.current) { DEFAULT_SIZE.toIntPx() }
+    val defaultSizePx = with(LocalDensity.current) { DEFAULT_SIZE.roundToPx() }
     var currentSize by remember { mutableStateOf(IntSize(defaultSizePx, defaultSizePx)) }
     val scaledStrokes = remember(currentSize) {
         strokes.scale(
@@ -95,54 +90,103 @@ fun AnimatedSvg(
         )
     }
 
-    // Animation
+    // Animation declaration
     val strokeMeasures = remember(strokes) {
         strokes.map { PathMeasure(it.asAndroidPath(), false) }
     }
-    val definition = remember(strokes, state.pulse) {
-        buildTransitionDefinition(pathMeasureList = strokeMeasures)
+    var transitionState by remember(strokes, animate, animatedStrokes) {
+        val initialState = if (animate && animatedStrokes.isNotEmpty()) {
+            AnimationState.Start(strokeIndex = animatedStrokes.first(), strokeAnimationIndex = 0)
+        } else {
+            AnimationState.End(strokeIndex = strokes.lastIndex, strokeAnimationIndex = 0)
+        }
+        mutableStateOf(MutableTransitionState(initialState))
     }
-    val transitionState = if (state.animate) {
-        transition(
-            definition = definition,
-            initState = AnimationState.START,
-            toState = AnimationState.END
+    val transition = updateTransition(transitionState, "AnimatedSvg")
+    val currentState = transitionState.currentState
+
+    // Animation values
+    val animatedStrokeIndex = currentState.strokeIndex
+    val animatedStrokeAnimationIndex = currentState.strokeAnimationIndex
+    val animatedStrokeProgress by transition.animateFloat(
+        transitionSpec = {
+            if (initialState is AnimationState.Start && targetState is AnimationState.End) {
+                tween(
+                    durationMillis = (strokeMeasures[initialState.strokeIndex].length * 10).toInt(),
+                    delayMillis = if (initialState.strokeAnimationIndex == 0) initialDelay else delayBetweenStrokes,
+                    easing = FastOutSlowInEasing
+                )
+            } else {
+                snap()
+            }
+        }
+    ) {
+        if (it is AnimationState.Start) 0f else 1f
+    }
+
+    // Animation state update
+    if (currentState is AnimationState.Start) {
+        transitionState.targetState = AnimationState.End(
+            strokeIndex = animatedStrokeIndex,
+            strokeAnimationIndex = animatedStrokeAnimationIndex
         )
-    } else {
-        definition.getStateFor(AnimationState.END)
+    } else if (currentState is AnimationState.End && animatedStrokeAnimationIndex < animatedStrokes.lastIndex) {
+        transitionState.targetState = AnimationState.Start(
+            strokeIndex = animatedStrokes[animatedStrokeAnimationIndex + 1],
+            strokeAnimationIndex = animatedStrokeAnimationIndex + 1
+        )
     }
 
     // Drawing
+    val strokePaint = remember {
+        Paint().apply {
+            style = PaintingStyle.Stroke
+            strokeCap = StrokeCap.Round
+        }
+    }
+    val fingerPosition = remember { floatArrayOf(0f, 0f) }
     Canvas(
         modifier = modifier
+            .run {
+                if (animate && animatedStrokes.isNotEmpty()) {
+                    clickable {
+                        // Restart animation on click
+                        transitionState = MutableTransitionState(
+                            AnimationState.Start(
+                                strokeIndex = animatedStrokes.first(),
+                                strokeAnimationIndex = 0
+                            )
+                        )
+                    }
+                } else {
+                    this
+                }
+            }
+            .preferredSize(DEFAULT_SIZE)
             .aspectRatio(1f)
             .onSizeChanged { currentSize = it }
     ) {
         strokePaint.strokeWidth = strokeWidth.toPx()
 
-        val animationProgress = transitionState[StrokeProgress]
-        val animatedStrokeIndex = (ceil(animationProgress).toInt() - 1).coerceAtLeast(0)
-        val animatedStrokeProgress = animationProgress - animatedStrokeIndex
-
         scaledStrokes.forEachIndexed { i, (strokePath, strokeMeasure) ->
             val isAnimatedStroke = i == animatedStrokeIndex && animatedStrokeProgress < 1f
 
             // Draw placeholder
-            if (drawPlaceholder && (i > animatedStrokeIndex || isAnimatedStroke)) {
+            if (drawPlaceholder && (i !in animatedStrokes || i > animatedStrokeIndex || isAnimatedStroke)) {
                 strokePaint.color = placeholderColor
-                strokePaint.nativePathEffect = null
+                strokePaint.pathEffect = null
                 drawIntoCanvas { canvas -> canvas.drawPath(strokePath, strokePaint) }
             }
-            if (i > animatedStrokeIndex) return@forEachIndexed
+            if (i > animatedStrokeIndex || i !in animatedStrokes) return@forEachIndexed
 
             // Draw animated stroke or full stroke
             strokePaint.color = if (i in highlightedStrokes) highlightColor else color
-            strokePaint.nativePathEffect = if (isAnimatedStroke) {
+            strokePaint.pathEffect = if (isAnimatedStroke) {
                 val length = strokeMeasure.length
                 DashPathEffect(
                     floatArrayOf(length, length),
                     (1f - animatedStrokeProgress) * length
-                )
+                ).toComposePathEffect()
             } else {
                 null
             }
@@ -189,43 +233,26 @@ private fun List<Path>.scale(srcBox: RectF, dstBox: RectF): List<Pair<Path, Path
     }
 }
 
-private enum class AnimationState { START, END }
+private sealed class AnimationState {
 
-/**
- * Builds a transition definition for the given path measures.
- * The animation duration is proportional to the path's length, with a formula tested and approved.
- * Each stroke is animated with its own interpolator.
- */
-@SuppressLint("Range")
-private fun buildTransitionDefinition(
-    pathMeasureList: List<PathMeasure>,
-    @IntRange(from = 0) initialDelay: Int = 250,
-    @IntRange(from = 0) delayBetweenStrokes: Int = 0
-): TransitionDefinition<AnimationState> {
-    return transitionDefinition {
-        state(AnimationState.START) {
-            this[StrokeProgress] = 0f
-        }
-        state(AnimationState.END) {
-            this[StrokeProgress] = pathMeasureList.size.toFloat()
-        }
+    /** Index of the stroke in the input [Path] list */
+    abstract val strokeIndex: Int
 
-        transition(AnimationState.START to AnimationState.END) {
-            StrokeProgress using keyframes {
-                delayMillis = initialDelay
-                durationMillis =
-                    pathMeasureList.foldIndexed(0) { i, previousKeyframe, pathMeasure ->
-                        val keyFrame = (previousKeyframe + pathMeasure.length * 10).toInt()
-                        val progress = (i + 1).toFloat()
-                        progress at keyFrame with FastOutSlowInEasing
-                        progress at (keyFrame + delayBetweenStrokes) with FastOutSlowInEasing
+    /**
+     * Index of the stroke in the animation. It can differ from [strokeIndex] if we're animating
+     * only a subset of the input [Path] list
+     */
+    abstract val strokeAnimationIndex: Int
 
-                        keyFrame + delayBetweenStrokes
-                    }
-                pathMeasureList.size.toFloat() at durationMillis with FastOutSlowInEasing
-            }
-        }
-    }
+    data class Start(
+        override val strokeIndex: Int,
+        override val strokeAnimationIndex: Int = strokeIndex
+    ) : AnimationState()
+
+    data class End(
+        override val strokeIndex: Int,
+        override val strokeAnimationIndex: Int = strokeIndex
+    ) : AnimationState()
 }
 
 @Preview(widthDp = 42, heightDp = 42, showBackground = true, backgroundColor = 0xFFFFFFFF)

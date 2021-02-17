@@ -2,8 +2,8 @@ package com.github.badoualy.animatedsvg.sample
 
 import android.graphics.RectF
 import android.os.Bundle
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -11,9 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asComposePath
-import androidx.compose.ui.platform.setContent
 import com.github.badoualy.animatedsvg.AnimatedSvg
-import com.github.badoualy.animatedsvg.AnimatedSvgState
 import com.github.badoualy.animatedsvg.SvgHelper
 
 class MainActivity : AppCompatActivity() {
@@ -40,11 +38,10 @@ fun AnimatedSvgComposableSample() {
     """.trimIndent()
 
     val strokes = remember { svg.lines().map { SvgHelper.buildPath(it).asComposePath() } }
-    val state = remember { AnimatedSvgState(animate = true) }
     AnimatedSvg(
         strokes = strokes,
         box = RectF(0f, 0f, 109f, 109f),
-        modifier = Modifier.fillMaxSize().clickable(onClick = { state.restart() }),
-        state = state
+        modifier = Modifier.fillMaxSize(),
+        animate = true
     )
 }
