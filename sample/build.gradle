@@ -1,11 +1,12 @@
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
+    id 'maven-publish'
 }
 
 android {
     compileSdkVersion 30
-    buildToolsVersion "30.0.2"
+    buildToolsVersion "30.0.3"
 
     defaultConfig {
         applicationId "com.github.badoualy.animatedsvg.sample"
@@ -39,7 +40,19 @@ android {
         kotlinCompilerExtensionVersion compose_version
         kotlinCompilerVersion '1.4.0'
     }
+}
 
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                // You can then customize attributes of the publication as shown below.
+                groupId = 'com.github.badoualy'
+                artifactId = 'animatedsvg-composable'
+                version = '2.0.0'
+            }
+        }
+    }
 }
 
 dependencies {
