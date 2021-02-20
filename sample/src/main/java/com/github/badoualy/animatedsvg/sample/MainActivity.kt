@@ -40,7 +40,7 @@ fun AnimatedSvgComposableSample() {
     """.trimIndent()
 
     val strokes = remember { svg.lines().map { SvgHelper.buildPath(it).asComposePath() } }
-    val state = remember { AnimatedSvgState(animate = true) }
+    val state = remember { AnimatedSvgState(animate = false) }
     AnimatedSvg(
         strokes = strokes,
         box = RectF(0f, 0f, 109f, 109f),

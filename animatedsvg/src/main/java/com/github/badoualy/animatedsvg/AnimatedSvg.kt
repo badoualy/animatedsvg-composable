@@ -97,18 +97,20 @@ fun AnimatedSvg(
     var animatedStrokeIndex by remember(animatedProgress) {
         mutableStateOf(animatedStrokes.firstOrNull() ?: 0)
     }
-    LaunchedEffect(animatedProgress) {
-        animatedStrokes.forEachIndexed { i, stroke ->
-            animatedProgress.snapTo(0f)
-            animatedStrokeIndex = stroke
-            animatedProgress.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = (strokeMeasures[stroke].length * 10).toInt(),
-                    delayMillis = if (i == 0) initialDelay else delayBetweenStrokes,
-                    easing = FastOutSlowInEasing
+    if (state.animate) {
+        LaunchedEffect(animatedProgress) {
+            animatedStrokes.forEachIndexed { i, stroke ->
+                animatedProgress.snapTo(0f)
+                animatedStrokeIndex = stroke
+                animatedProgress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(
+                        durationMillis = (strokeMeasures[stroke].length * 10).toInt(),
+                        delayMillis = if (i == 0) initialDelay else delayBetweenStrokes,
+                        easing = FastOutSlowInEasing
+                    )
                 )
-            )
+            }
         }
     }
 
