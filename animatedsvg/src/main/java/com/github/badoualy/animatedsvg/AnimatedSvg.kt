@@ -8,7 +8,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.preferredSize
@@ -47,7 +46,7 @@ private val DEFAULT_SIZE = 42.dp
  * @param strokes list of path to animate sequentially (in the given order)
  * @param box bounding box of the underlying SVG
  * @param modifier modifiers applied to the canvas where the svg is drawn on
- * @param animate true if the animation should run, false otherwise
+ * @param state current animation state (controller used to start/restart/stop animation)
  * @param initialDelay initial delay in ms before the first stroke of the animation starts
  * @param delayBetweenStrokes delay in ms between each animated stroke
  * @param drawPlaceholder true to draw the placeholder below the animation, to preview the content
@@ -65,7 +64,7 @@ fun AnimatedSvg(
     strokes: List<Path>,
     box: RectF,
     modifier: Modifier = Modifier,
-    animate: Boolean = false,
+    state: AnimatedSvgState = remember { AnimatedSvgState(false) },
     initialDelay: Int = 250,
     delayBetweenStrokes: Int = 0,
     drawPlaceholder: Boolean = true,
@@ -92,11 +91,11 @@ fun AnimatedSvg(
     val strokeMeasures = remember(strokes) {
         strokes.map { PathMeasure(it.asAndroidPath(), false) }
     }
-    var animatedStrokeIndex by remember(strokes, animate, animatedStrokes) {
-        mutableStateOf(animatedStrokes.firstOrNull() ?: 0)
+    val animatedProgress = remember(strokes, animatedStrokes, state.animate, state.pulse) {
+        Animatable(0f)
     }
-    var animatedProgress by remember(strokes, animate, animatedStrokes) {
-        mutableStateOf(Animatable(0f))
+    var animatedStrokeIndex by remember(animatedProgress) {
+        mutableStateOf(animatedStrokes.firstOrNull() ?: 0)
     }
     LaunchedEffect(animatedProgress) {
         animatedStrokes.forEachIndexed { i, stroke ->
@@ -123,16 +122,6 @@ fun AnimatedSvg(
     val fingerPosition = remember { floatArrayOf(0f, 0f) }
     Canvas(
         modifier = modifier
-            .run {
-                if (animate && animatedStrokes.isNotEmpty()) {
-                    clickable {
-                        // Restart animation on click
-                        animatedProgress = Animatable(0f)
-                    }
-                } else {
-                    this
-                }
-            }
             .preferredSize(DEFAULT_SIZE)
             .aspectRatio(1f)
             .onSizeChanged { currentSize = it }
