@@ -16,7 +16,7 @@ repositories {
 
 Then, add the library dependency:
 ```gradle
-implementation 'com.github.badoualy:animatedsvg-composable:2.0.0'
+implementation 'com.github.badoualy:animatedsvg-composable:2.2.1'
 ```
 
 
@@ -32,7 +32,6 @@ Usage
 AnimatedSvg(
     strokes = strokes,
     box = RectF(0f, 0f, 109f, 109f),
-    modifier = Modifier.fillMaxSize(),
-    animate = true
+    modifier = Modifier.fillMaxSize()
 )
 ```
