@@ -10,7 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.preferredSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.LocalContentAlpha
 import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
@@ -124,7 +124,7 @@ fun AnimatedSvg(
     val fingerPosition = remember { floatArrayOf(0f, 0f) }
     Canvas(
         modifier = modifier
-            .preferredSize(DEFAULT_SIZE)
+            .size(DEFAULT_SIZE)
             .aspectRatio(1f)
             .onSizeChanged { currentSize = it }
     ) {
