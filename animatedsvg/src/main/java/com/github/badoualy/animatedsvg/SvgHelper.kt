@@ -50,7 +50,7 @@ object SvgHelper {
                 val coordinatesStr = matcher.group(2).orEmpty()
                 Log.v("SVGUtils", "[$command]: $coordinatesStr")
 
-                when (command.toLowerCase()) {
+                when (command.lowercaseChar()) {
                     'm' -> coordinatesStr.split(',').let {
                         val x = it[0].toFloat()
                         val y = it[1].toFloat()
