@@ -4,9 +4,6 @@ import android.graphics.DashPathEffect
 import android.graphics.Matrix
 import android.graphics.PathMeasure
 import android.graphics.RectF
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,23 +11,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.LocalContentAlpha
 import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.PaintingStyle
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asAndroidPath
-import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.toComposePathEffect
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
@@ -47,16 +32,15 @@ private val DEFAULT_SIZE = 42.dp
  * @param box bounding box of the underlying SVG
  * @param modifier modifiers applied to the canvas where the svg is drawn on
  * @param state current animation state (controller used to start/restart/stop animation)
- * @param initialDelay initial delay in ms before the first stroke of the animation starts
- * @param delayBetweenStrokes delay in ms between each animated stroke
  * @param drawPlaceholder true to draw the placeholder below the animation, to preview the content
- * @param animatedStrokes list of indices from [strokes] to animate (the rest will be drawn as placeholder if enabled)
- * @param highlightedStrokes list of stroke index to highlight
+ * @param drawPlaceholderHighlights true to draw the placeholder with the highlight color if appliable
+ * @param animatedStrokes indices from [strokes] to animate (the rest will be drawn as placeholder if enabled)
+ * @param highlightedStrokes indices from [strokes] to highlight
  * @param strokeWidth strokeWidth to apply to the paint drawing the path
+ * @param fingerRadius radius of the indicator at the current position (0 to hide)
  * @param color stroke color for the actual strokes being animated
  * @param placeholderColor stroke color for the placeholder strokes
  * @param highlightColor stroke color for highlighted strokes
- * @param fingerRadius radius of the indicator at the current position (0 to hide)
  * @param fingerColor color of the circular indicator at the current position of the animation
  */
 @Composable
@@ -65,16 +49,15 @@ fun AnimatedSvg(
     box: RectF,
     modifier: Modifier = Modifier,
     state: AnimatedSvgState = remember { AnimatedSvgState(false) },
-    initialDelay: Int = 250,
-    delayBetweenStrokes: Int = 0,
     drawPlaceholder: Boolean = true,
+    drawPlaceholderHighlights: Boolean = false,
     animatedStrokes: List<Int> = strokes.indices.toList(),
-    highlightedStrokes: IntArray = intArrayOf(),
+    highlightedStrokes: List<Int> = emptyList(),
     strokeWidth: Dp = 4.dp,
-    color: Color = LocalContentColor.current.copy(alpha = LocalContentAlpha.current),
-    placeholderColor: Color = LocalContentColor.current.copy(alpha = 0.25f),
-    highlightColor: Color = MaterialTheme.colors.secondary,
     fingerRadius: Dp = 8.dp,
+    color: Color = LocalContentColor.current.copy(alpha = LocalContentAlpha.current),
+    placeholderColor: Color = color.copy(alpha = 0.25f),
+    highlightColor: Color = MaterialTheme.colors.secondary,
     fingerColor: Color = MaterialTheme.colors.primary
 ) {
     // Build matrix and scaled strokes to fill the viewport
@@ -86,31 +69,23 @@ fun AnimatedSvg(
             dstBox = RectF(0f, 0f, currentSize.width.toFloat(), currentSize.height.toFloat())
         )
     }
-
-    // Animation declaration
     val strokeMeasures = remember(strokes) {
         strokes.map { PathMeasure(it.asAndroidPath(), false) }
     }
-    val animatedProgress = remember(strokes, animatedStrokes, state.animate, state.pulse) {
-        Animatable(0f)
-    }
-    var animatedStrokeIndex by remember(animatedProgress) {
-        mutableStateOf(animatedStrokes.firstOrNull() ?: 0)
+
+    // Animation
+    // TODO: We might want to use scaledStrokes as key instead
+    //  and defer draw/animation until size is computed
+    LaunchedEffect(strokes, animatedStrokes, state.pulse) {
+        // Reset animation when content or pulse changes (stop or start was called)
+        state.resetAnimationState()
     }
     if (state.animate) {
-        LaunchedEffect(animatedProgress) {
-            animatedStrokes.forEachIndexed { i, stroke ->
-                animatedProgress.snapTo(0f)
-                animatedStrokeIndex = stroke
-                animatedProgress.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(
-                        durationMillis = (strokeMeasures[stroke].length * 10).toInt(),
-                        delayMillis = if (i == 0) initialDelay else delayBetweenStrokes,
-                        easing = FastOutSlowInEasing
-                    )
-                )
-            }
+        LaunchedEffect(strokes, animatedStrokes, state.pulse) {
+            state.animateStrokes(
+                indices = animatedStrokes,
+                strokeMeasures = strokeMeasures
+            )
         }
     }
 
@@ -128,19 +103,27 @@ fun AnimatedSvg(
             .aspectRatio(1f)
             .onSizeChanged { currentSize = it }
     ) {
-        val animatedStrokeProgress = animatedProgress.value
+        val animatedStrokeProgress = state.strokeAnimationValue
+        val animatedStrokeIndex = state.animatedStrokeIndex
         strokePaint.strokeWidth = strokeWidth.toPx()
 
         scaledStrokes.forEachIndexed { i, (strokePath, strokeMeasure) ->
             val isAnimatedStroke = i == animatedStrokeIndex && animatedStrokeProgress < 1f
 
-            // Draw placeholder
+            // Draw placeholder (if not animated, not YET animated or not fully animated)
+            // When drawing currently animated stroke, we draw placeholder AND animated path over
             if (drawPlaceholder && (i !in animatedStrokes || i > animatedStrokeIndex || isAnimatedStroke)) {
-                strokePaint.color = placeholderColor
+                strokePaint.color = if (drawPlaceholderHighlights && i in highlightedStrokes) {
+                    highlightColor
+                } else {
+                    placeholderColor
+                }
                 strokePaint.pathEffect = null
                 drawIntoCanvas { canvas -> canvas.drawPath(strokePath, strokePaint) }
             }
-            if (i > animatedStrokeIndex || i !in animatedStrokes) return@forEachIndexed
+
+            // Stroke won't be animated now, skip
+            if (i !in animatedStrokes || i > animatedStrokeIndex) return@forEachIndexed
 
             // Draw animated stroke or full stroke
             strokePaint.color = if (i in highlightedStrokes) highlightColor else color

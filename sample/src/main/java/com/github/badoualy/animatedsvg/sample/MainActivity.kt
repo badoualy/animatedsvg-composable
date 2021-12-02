@@ -8,8 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asComposePath
 import com.github.badoualy.animatedsvg.AnimatedSvg
@@ -41,10 +40,21 @@ fun AnimatedSvgComposableSample() {
 
     val strokes = remember { svg.lines().map { SvgHelper.buildPath(it).asComposePath() } }
     val state = remember { AnimatedSvgState(animate = false) }
+    var step by remember { mutableStateOf(0) }
     AnimatedSvg(
         strokes = strokes,
         box = RectF(0f, 0f, 109f, 109f),
-        modifier = Modifier.fillMaxSize().clickable(onClick = { state.restart() }),
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(onClick = {
+                when (step) {
+                    0 -> state.start()
+                    1 -> state.pause()
+                    2 -> state.resume()
+                    3 -> state.stop()
+                }
+                step = (step + 1) % 4
+            }),
         state = state
     )
 }
