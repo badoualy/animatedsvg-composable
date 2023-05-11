@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.LocalContentAlpha
+import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.runtime.*
@@ -55,6 +57,9 @@ fun AnimatedSvgComposableSample() {
                 }
                 step = (step + 1) % 4
             }),
-        state = state
+        state = state,
+        color = LocalContentColor.current.copy(alpha = LocalContentAlpha.current),
+        highlightColor = MaterialTheme.colors.secondary,
+        fingerColor = MaterialTheme.colors.primary,
     )
 }

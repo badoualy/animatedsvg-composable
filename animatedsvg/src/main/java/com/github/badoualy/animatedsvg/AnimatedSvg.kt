@@ -5,17 +5,28 @@ import android.graphics.Matrix
 import android.graphics.PathMeasure
 import android.graphics.RectF
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.LocalContentAlpha
-import androidx.compose.material.LocalContentColor
-import androidx.compose.material.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.PaintingStyle
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.toComposePathEffect
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,10 +66,10 @@ fun AnimatedSvg(
     highlightedStrokes: List<Int> = emptyList(),
     strokeWidth: Dp = 4.dp,
     fingerRadius: Dp = 8.dp,
-    color: Color = LocalContentColor.current.copy(alpha = LocalContentAlpha.current),
+    color: Color,
     placeholderColor: Color = color.copy(alpha = 0.25f),
-    highlightColor: Color = MaterialTheme.colors.secondary,
-    fingerColor: Color = MaterialTheme.colors.primary
+    highlightColor: Color,
+    fingerColor: Color,
 ) {
     // Build matrix and scaled strokes to fill the viewport
     val defaultSizePx = with(LocalDensity.current) { DEFAULT_SIZE.roundToPx() }
@@ -190,12 +201,15 @@ private fun AnimatedSvgPreview() {
     M37,58.25c8.75-1.12,27-3.5,36.25-4
     """.trimIndent()
 
-    MaterialTheme {
+    Box(modifier = Modifier.background(Color.Black)) {
         val strokes = remember { svg.lines().map { SvgHelper.buildPath(it).asComposePath() } }
         AnimatedSvg(
             strokes = strokes,
             box = RectF(0f, 0f, 109f, 109f),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            color = Color.White,
+            highlightColor = Color.Yellow,
+            fingerColor = Color.Cyan,
         )
     }
 }
