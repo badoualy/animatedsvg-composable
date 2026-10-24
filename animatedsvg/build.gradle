@@ -46,7 +46,7 @@ afterEvaluate {
                 // You can then customize attributes of the publication as shown below.
                 groupId = 'com.github.badoualy'
                 artifactId = 'animatedsvg-composable'
-                version = '2.5.0'
+                version = '3.0.0'
             }
         }
     }
