@@ -1,13 +1,17 @@
 package com.github.badoualy.animatedsvg
 
-import android.graphics.PathMeasure
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlin.math.roundToInt
+
+/** Animation duration in ms per unit of stroke length (in the SVG coordinate space) */
+private const val DURATION_PER_LENGTH_UNIT = 10f
 
 @Stable
 class AnimatedSvgState(
@@ -19,12 +23,12 @@ class AnimatedSvgState(
 ) {
     var animate: Boolean by mutableStateOf(animate)
         private set
-    internal var pulse: Int by mutableStateOf(0)
+    internal var pulse: Int by mutableIntStateOf(0)
         private set
 
     private val strokeAnimation = Animatable(0f)
     internal val strokeAnimationValue get() = strokeAnimation.value
-    internal var animatedStrokeIndex by mutableStateOf(-1)
+    internal var animatedStrokeIndex by mutableIntStateOf(-1)
         private set
 
     /**
@@ -58,35 +62,45 @@ class AnimatedSvgState(
     }
 
     /**
-     * Reset state at the given stroke index
-     * @param index stroke index at which to position the cursor
+     * Reset state before the first stroke
      */
     internal suspend fun resetAnimationState() {
         strokeAnimation.snapTo(0f)
         animatedStrokeIndex = -1
     }
 
-    suspend fun animateStrokes(
+    /**
+     * Sequentially animate the given strokes, resuming from the current state if the animation was paused
+     *
+     * @param indices indices of the strokes to animate, in animation order
+     * @param strokeLengths length of every stroke, used to compute each stroke animation duration
+     */
+    internal suspend fun animateStrokes(
         indices: List<Int>,
-        strokeMeasures: List<PathMeasure>
+        strokeLengths: List<Float>
     ) {
-        indices
-            .drop(indices.indexOf(animatedStrokeIndex).takeIf { it >= 0 } ?: 0)
-            .forEachIndexed { i, index ->
-                if (i > 0) {
-                    strokeAnimation.snapTo(0f)
-                }
+        val startPosition = indices.indexOf(animatedStrokeIndex).coerceAtLeast(0)
+        for (position in startPosition until indices.size) {
+            val index = indices[position]
+            if (index != animatedStrokeIndex) {
+                strokeAnimation.snapTo(0f)
                 animatedStrokeIndex = index
-
-                // TODO: when paused, durationMillis should take in account for distance already done
-                strokeAnimation.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(
-                        durationMillis = (strokeMeasures[index].length * 10).toInt(),
-                        delayMillis = if (i == 0) initialDelay else delayBetweenStrokes,
-                        easing = FastOutSlowInEasing
-                    )
-                )
             }
+
+            // When resuming a paused stroke, only animate the remaining part, without delay
+            val remainingProgress = 1f - strokeAnimation.value
+            strokeAnimation.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = (strokeLengths[index] * DURATION_PER_LENGTH_UNIT * remainingProgress).roundToInt(),
+                    delayMillis = when {
+                        remainingProgress < 1f -> 0
+                        position == 0 -> initialDelay
+                        else -> delayBetweenStrokes
+                    },
+                    easing = FastOutSlowInEasing
+                )
+            )
+        }
     }
 }

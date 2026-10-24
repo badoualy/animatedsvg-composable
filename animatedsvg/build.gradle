@@ -1,19 +1,15 @@
 plugins {
     id 'com.android.library'
-    id 'kotlin-android'
+    id 'org.jetbrains.kotlin.plugin.compose'
     id 'maven-publish'
 }
 
 android {
-    namespace "com.github.badoualy.animatedsvg"
-    compileSdkVersion 33
-    buildToolsVersion "33.0.0"
+    namespace = "com.github.badoualy.animatedsvg"
+    compileSdk = 37
 
     defaultConfig {
-        minSdkVersion 23
-        targetSdkVersion 33
-        versionCode 1
-        versionName "1.0"
+        minSdk = 23
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -21,7 +17,7 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -30,14 +26,14 @@ android {
         compose = true
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion "1.4.6"
+
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+        }
     }
 }
 
@@ -57,10 +53,11 @@ afterEvaluate {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation platform("androidx.compose:compose-bom:${rootProject.compose_bom_version}")
+    implementation "androidx.compose.animation:animation"
+    implementation "androidx.compose.foundation:foundation"
+    implementation "androidx.compose.ui:ui"
+    implementation "androidx.compose.ui:ui-tooling-preview"
 
-    implementation "androidx.compose.foundation:foundation:1.4.3"
-    implementation "androidx.compose.animation:animation:1.4.3"
-    implementation "androidx.compose.ui:ui:1.4.3"
-    implementation "androidx.compose.ui:ui-tooling:1.4.3"
+    debugImplementation "androidx.compose.ui:ui-tooling"
 }

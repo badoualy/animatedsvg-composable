@@ -1,7 +1,6 @@
 package com.github.badoualy.animatedsvg
 
 import android.graphics.Path
-import android.util.Log
 import java.util.regex.Pattern
 
 /**
@@ -43,12 +42,11 @@ object SvgHelper {
             var lastY1 = 0f
             var subPathStartX = 0f
             var subPathStartY = 0f
-            var curve = false
 
             while (matcher.find()) {
                 val command = matcher.group(1)?.get(0) ?: Char.MIN_VALUE
                 val coordinatesStr = matcher.group(2).orEmpty()
-                Log.v("SVGUtils", "[$command]: $coordinatesStr")
+                var curve = false
 
                 when (command.lowercaseChar()) {
                     'm' -> coordinatesStr.split(',').let {
